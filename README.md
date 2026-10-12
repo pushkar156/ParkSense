@@ -1,210 +1,194 @@
-# ParkSense — Smart Parking IoT Monitoring & Control System
+# 🚗 ParkSense — Smart Parking IoT Monitoring & Analytics Platform
 
-**ParkSense** is an IoT smart parking platform designed for real-time occupancy detection, live ultrasonic telemetry, actuator control, and historical analytics. Connected to an **Arduino Uno R3** equipped with an **HC-SR04 ultrasonic distance sensor** and status LEDs, ParkSense bridges physical hardware to a web dashboard.
-
----
-
-## 1. System Architecture
-
-```
-+-------------------+        USB Serial (9600 8-N-1)        +----------------------+
-|   Arduino Uno     | <==================================> |  Python Flask Server |
-|  + HC-SR04 Sonar  |   Newline JSON:                      |  (Local REST API)    |
-|  + Red/Green LEDs |   {"distance_cm":12.4,...}           |  SQLite: parksense.db|
-+-------------------+                                      +----------------------+
-                                                                      ^
-                                            HTTP Fetch / JSON        |
-                                            (http://127.0.0.1:5000)  v
-                                                           +----------------------+
-                                                           |   ParkSense Web UI   |
-                                                           |   (React 19 + Vite)  |
-                                                           |   Simulation / Live  |
-                                                           +----------------------+
-```
-
-### Modes
-1. **Simulation Mode**: Uses an autonomous backend physics engine (and client-side fallback) that simulates vehicle arrival, bay parking, sensor noise, departure, and state changes, persisting records with `source = 'simulation'` in SQLite. Ideal for demos, grading, and testing without physical hardware.
-2. **Hardware Mode**: Connects through the local Python Flask backend (`http://127.0.0.1:5000/api`) to the physical Arduino USB serial port (`COM3` on Windows, `/dev/ttyUSB0` or `/dev/ttyACM0` on Linux/macOS). The UI clearly displays when the hardware or backend is offline.
+<p align="center">
+  <img src="https://img.shields.io/badge/Frontend-React%2019%20%7C%20Vite%208-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19" />
+  <img src="https://img.shields.io/badge/Language-TypeScript%20%7C%20Python%203.11-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript Python" />
+  <img src="https://img.shields.io/badge/Backend-Flask%203.1-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask" />
+  <img src="https://img.shields.io/badge/Database-SQLite%20(WAL)-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite" />
+  <img src="https://img.shields.io/badge/Hardware-Arduino%20Uno%20R3-00979D?style=for-the-badge&logo=arduino&logoColor=white" alt="Arduino Uno" />
+  <img src="https://img.shields.io/badge/Sensor-HC--SR04%20Ultrasonic-FFA500?style=for-the-badge" alt="HC-SR04" />
+</p>
 
 ---
 
-## 2. Hardware Wiring & Pin Connections
+## 📌 Overview
 
-| Component | Arduino Pin | Notes |
+**ParkSense** is an end-to-end IoT smart parking monitoring system designed for real-time bay occupancy detection, live ultrasonic telemetry streaming, actuator override, and historical analytics. 
+
+Connected to an **Arduino Uno R3** equipped with an **HC-SR04 ultrasonic distance sensor** and dual LED indicators, ParkSense bridges physical microcontrollers with an interactive web dashboard powered by **React 19** and a **Python Flask** gateway with **SQLite persistence**.
+
+> 📖 **Looking for step-by-step instructions to run this project?**  
+> Check out the [**Beginner-Friendly Quick Start Guide (`run.md`)**](run.md).
+
+---
+
+## ✨ Key Features
+
+- **⚡ Live Ultrasonic Telemetry**: Near real-time measurement updates (1 Hz) streaming distance, bay occupancy, and sensor health.
+- **🎯 Intelligent State Debouncing**: Confirmed state transitions emit historical `ARRIVAL` and `DEPARTURE` events without repetitive noise.
+- **🔄 Dual Operation Modes**:
+  - **Simulation Mode**: Full offline physics simulation generating realistic vehicle approach, parking, and departure cycles with SQLite database persistence.
+  - **Hardware Mode**: Direct USB serial integration with the Arduino Uno microcontroller (`9600` baud).
+- **💡 Dual Operating Control**:
+  - `AUTO` Mode: Arduino autonomously toggles Green/Red LEDs based on the distance threshold.
+  - `MANUAL` Mode: Web dashboard user can independently toggle physical or virtual LEDs.
+- **📊 Comprehensive Analytics**: Bay occupancy rate, total arrivals/departures, average parking duration, 24-hour histogram, and CSV export.
+- **🔍 Event Audit Log**: Filterable, paginated audit records for vehicle transitions, mode switches, and threshold calibrations.
+- **🛡️ Data Quality & Fault Tolerance**: Sensor timeouts (-1.0 cm) are safely handled as invalid measurements and excluded from analytics denominators without crashing the gateway.
+
+---
+
+## 🏛️ System Architecture
+
+```
+  ┌────────────────────────────────────────────────────────┐
+  │                 Physical IoT Circuit                   │
+  │  Arduino Uno R3 + HC-SR04 Ultrasonic Sonar             │
+  │  Red LED (Pin 4)  |  Green LED (Pin 5)                 │
+  └──────────────────────────┬─────────────────────────────┘
+                             │  USB Serial (9600 8-N-1)
+                             │  Newline JSON Protocol
+                             ▼
+  ┌────────────────────────────────────────────────────────┐
+  │               Python Flask API Gateway                 │
+  │  • PySerial Manager (Thread-Safe & Auto-Reconnect)     │
+  │  • Parking Service (Debounce & State Coordinator)      │
+  │  • Simulation Service (Realistic Vehicle Physics)      │
+  │  • Analytics Engine (Statistical Aggregation)          │
+  │  • SQLite Database (WAL Mode Concurrency)              │
+  └──────────────────────────┬─────────────────────────────┘
+                             │  REST API / JSON
+                             │  http://127.0.0.1:5000/api
+                             ▼
+  ┌────────────────────────────────────────────────────────┐
+  │              ParkSense Web Application                 │
+  │  React 19 + TypeScript + Vite + Recharts + Tailwind    │
+  │  Live Telemetry • Radar Visualizer • Trends • Settings │
+  └────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔌 Hardware Circuit & Pinout
+
+| Component | Arduino Pin | Description |
 | :--- | :--- | :--- |
-| **HC-SR04 VCC** | `5V` | Power supply |
-| **HC-SR04 GND** | `GND` | Ground |
-| **HC-SR04 TRIG** | `Digital Pin 9` | 10µs trigger pulse |
-| **HC-SR04 ECHO** | `Digital Pin 10` | Pulse width measurement |
-| **Red LED (Anode +)** | `Digital Pin 4` | Connected via **220Ω resistor** (Occupied indicator) |
-| **Green LED (Anode +)** | `Digital Pin 5` | Connected via **220Ω resistor** (Available indicator) |
-| **LED Cathodes (-)** | `GND` | Both connected to Ground |
+| **HC-SR04 VCC** | `5V` | 5V Power rail |
+| **HC-SR04 GND** | `GND` | Common ground rail |
+| **HC-SR04 TRIG** | `Digital Pin 9` | 10µs ultrasonic trigger pulse |
+| **HC-SR04 ECHO** | `Digital Pin 10` | High pulse duration measured in microseconds |
+| **Red LED (Anode +)** | `Digital Pin 4` | Occupied state indicator (via **220Ω resistor**) |
+| **Green LED (Anode +)** | `Digital Pin 5` | Available state indicator (via **220Ω resistor**) |
+| **Both Cathodes (-)** | `GND` | Common ground rail |
 
-> **Note:** The Arduino sketch is located at [`firmware/parksense_firmware.ino`](firmware/parksense_firmware.ino).
-
----
-
-## 3. Arduino Serial Communication Protocol
-
-- **Baud Rate:** `9600` 8-N-1
-- **Interval:** 1 reading per second (1000ms)
-- **Telemetry Packet (Arduino -> Python Backend):**
-  ```json
-  {"distance_cm":23.4,"occupied":false,"mode":"AUTO","threshold_cm":15.0}
-  ```
-  *(A negative distance such as `-1.0` indicates an echo timeout / invalid measurement)*
-
-- **Supported Commands (Backend -> Arduino):**
-  - `MODE:AUTO` — Automatic occupancy sensing & LED control
-  - `MODE:MANUAL` — Manual dashboard override of LEDs
-  - `LED:RED:ON` / `LED:RED:OFF` — Red LED control (in MANUAL mode)
-  - `LED:GREEN:ON` / `LED:GREEN:OFF` — Green LED control (in MANUAL mode)
-  - `THRESHOLD:15.0` — Set detection threshold between 5.0 and 100.0 cm
-  - `RESET` — Reset threshold to 15.0 cm and return to AUTO mode
+> The complete Arduino sketch is located at [`firmware/parksense_firmware.ino`](firmware/parksense_firmware.ino).
 
 ---
 
-## 4. Prerequisites
+## 📡 Arduino Serial Protocol
 
-- **Python:** 3.11 or higher installed (`python --version`)
-- **Node.js:** v18+ or v22+ with npm (`node --version`, `npm --version`)
-- **Hardware (Optional for simulation):** Arduino Uno R3, HC-SR04 sensor, Red & Green LEDs, two 220Ω resistors, breadboard, jumper wires, USB-B cable.
-- **Arduino IDE:** To flash the firmware to your Uno board.
-
----
-
-## 5. Step-by-Step Setup Guide
-
-### A. Backend Setup (Flask + SQLite)
-
-Open **Windows PowerShell** in the project root:
-
-```powershell
-# 1. Navigate to backend directory
-cd backend
-
-# 2. Create virtual environment
-python -m venv .venv
-
-# 3. Activate the virtual environment
-.\.venv\Scripts\Activate.ps1
-# (On Linux / macOS: source .venv/bin/activate)
-
-# 4. Install backend dependencies
-pip install -r requirements.txt
-
-# 5. Run automated tests to verify backend integrity
-pytest tests/ -v
-
-# 6. Start the Flask backend server
-python app.py
+### 1. Telemetry Packet (Arduino → Backend)
+Broadcast at 1-second intervals as newline-delimited JSON:
+```json
+{"distance_cm":12.4,"occupied":true,"mode":"AUTO","threshold_cm":15.0}
 ```
+*(A distance of `-1.0` signifies an echo timeout or out-of-range condition)*
 
-The backend server starts on: **`http://127.0.0.1:5000`** with the REST API under `/api`.
+### 2. Supported Serial Commands (Backend → Arduino)
+| Command | Mode | Description |
+| :--- | :--- | :--- |
+| `MODE:AUTO` | Any | Enables automatic sensor-driven LED control |
+| `MODE:MANUAL` | Any | Enables manual actuator control via web dashboard |
+| `LED:RED:ON` / `OFF` | `MANUAL` | Sets Red LED state |
+| `LED:GREEN:ON` / `OFF` | `MANUAL` | Sets Green LED state |
+| `THRESHOLD:<value>` | Any | Updates detection threshold (`5.0` to `100.0` cm) |
+| `RESET` | Any | Restores defaults: Mode = `AUTO`, Threshold = `15.0` cm |
 
-### B. Frontend Setup (React + Vite)
+---
 
-Open a **second PowerShell terminal** in the project root:
+## 🌐 REST API Endpoints
+
+All endpoints are hosted under `http://127.0.0.1:5000/api`:
+
+| Method | Endpoint | Query / Body | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/health` | — | Server status, database health, hardware connectivity |
+| `GET` | `/status` | `?mode=hardware\|simulation` | Current sensor telemetry, LEDs, mode, threshold |
+| `GET` | `/readings/latest` | `?mode=hardware\|simulation` | Latest valid reading object |
+| `GET` | `/readings` | `?from=&to=&limit=&mode=` | Chronological sensor readings for charting |
+| `GET` | `/analytics` | `?from=&to=&mode=` | Occupancy %, arrival/departure counts, durations |
+| `GET` | `/events` | `?type=&from=&to=&page=&limit=` | Filterable and paginated event audit log |
+| `POST` | `/events/clear` | `?mode=hardware\|simulation` | Purge recorded historical events |
+| `GET` | `/settings` | — | Read persisted system configuration |
+| `PATCH` | `/settings` | `{"threshold_cm": 20.0, "mode": "AUTO"}` | Update detection threshold or operating mode |
+| `POST` | `/commands/mode` | `{"mode": "AUTO"\|"MANUAL"}` | Switch system operating mode |
+| `POST` | `/commands/led` | `{"color": "RED", "state": "ON"}` | Control indicator LEDs in MANUAL mode |
+| `POST` | `/commands/reset` | — | Restore factory defaults |
+| `GET` | `/ports` | — | Enumerate available host COM/TTY ports |
+
+---
+
+## ⚡ Quick Start
 
 ```powershell
-# 1. Install frontend dependencies
+# 1. Start Backend
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python app.py
+
+# 2. Start Frontend (in a new terminal)
 npm install --legacy-peer-deps
-
-# 2. Run typecheck & build test
-npm run lint
-npm run build
-
-# 3. Start development server
 npm run dev
 ```
 
-Open your browser to: **`http://localhost:3000`**.
-
-### C. Arduino Firmware Upload (Hardware Mode)
-
-1. Open the [Arduino IDE](https://www.arduino.cc/en/software).
-2. Connect your Arduino Uno to the computer via USB.
-3. Open [`firmware/parksense_firmware.ino`](firmware/parksense_firmware.ino).
-4. In Arduino IDE, select **Tools -> Board -> Arduino Uno**.
-5. Select **Tools -> Port -> COM3** (or the detected COM port on Windows / `/dev/ttyUSB0` on Linux).
-6. Click **Upload** (Ctrl+U).
-7. **IMPORTANT:** Close the Arduino IDE Serial Monitor! The Python backend needs exclusive ownership of the serial port.
+👉 **For complete details, hardware upload steps, and troubleshooting, read [`run.md`](run.md).**
 
 ---
 
-## 6. REST API Reference
+## 🧪 Testing & Validation
 
-Base URL: `http://127.0.0.1:5000/api`
-
-| Endpoint | Method | Parameters / Body | Description |
-| :--- | :--- | :--- | :--- |
-| `/health` | `GET` | — | System health check and device connectivity status |
-| `/status` | `GET` | `?mode=hardware\|simulation` | Current device state, LED status, baud, port |
-| `/readings/latest` | `GET` | `?mode=hardware\|simulation` | Latest recorded sensor reading |
-| `/readings` | `GET` | `?from=&to=&limit=&source=` | Historical sensor readings (chronological) |
-| `/analytics` | `GET` | `?from=&to=&source=` | Aggregated metrics, occupancy rate, durations, timeline |
-| `/events` | `GET` | `?type=&from=&to=&page=&limit=` | Filterable and paginated event audit log |
-| `/events/clear` | `POST` | `?source=hardware\|simulation` | Clear recorded event history |
-| `/settings` | `GET` | — | Get persisted threshold, mode, and serial port |
-| `/settings` | `PATCH` | `{"threshold_cm": 20.0, "mode": "AUTO"}` | Update detection threshold or operating mode |
-| `/commands/mode` | `POST` | `{"mode": "AUTO"\|"MANUAL"}` | Switch operating mode |
-| `/commands/led` | `POST` | `{"color": "RED", "state": "ON"}` | Control LEDs in MANUAL mode |
-| `/commands/reset` | `POST` | — | Reset device threshold to 15.0 cm and mode to AUTO |
-| `/ports` | `GET` | — | Enumerate detected system serial ports |
-
----
-
-## 7. Automated Test Suite
-
-Run the full pytest suite from the project root:
-
+Run the automated backend test suite:
 ```powershell
-backend/.venv/Scripts/pytest backend/tests/ -v
+backend\.venv\Scripts\pytest backend/tests/ -v
 ```
 
-All 21 unit & integration tests verify:
-- Health endpoint status
-- Disconnected hardware safety (no server crash)
-- Parameter validation & bounds checking (5-100 cm)
-- Mode & LED command restrictions (rejecting manual LED toggling in AUTO mode)
-- Transition event debouncing (only emitting ARRIVAL/DEPARTURE when state confirms a change)
-- Invalid sensor measurement policy (timeouts marked invalid and excluded from occupancy rate)
-- Event pagination and filtering
-- Analytics calculation correctness with zero or many records
-- Deterministic simulation mode
+Run frontend linting and production build:
+```powershell
+npm run lint
+npm run build
+```
 
 ---
 
-## 8. Troubleshooting Guide
+## 📂 Project Structure
 
-### 1. `ModuleNotFoundError: No module named 'serial'` or `'flask'`
-- Make sure your virtual environment is activated before running:
-  ```powershell
-  cd backend
-  .\.venv\Scripts\Activate.ps1
-  pip install -r requirements.txt
-  ```
+```
+ParkSense/
+├── backend/                       # Python Flask API Gateway
+│   ├── app.py                     # Flask application factory
+│   ├── config.py                  # Environment-driven configuration
+│   ├── database.py                # SQLite schema creation & WAL connections
+│   ├── models.py                  # Domain dataclasses & serializers
+│   ├── requirements.txt           # Python dependencies
+│   ├── routes/                    # Blueprint route handlers
+│   ├── services/                  # Business logic, PySerial & Simulation engines
+│   └── tests/                     # 21 unit & integration pytest tests
+├── firmware/
+│   └── parksense_firmware.ino     # Arduino Uno R3 C++ firmware
+├── src/                           # React 19 Frontend Dashboard
+│   ├── components/                # UI Layout, status badges, banners
+│   ├── context/                   # Global state, polling cycle & controls
+│   ├── pages/                     # Overview, Live Monitoring, Analytics, Events, Settings
+│   ├── services/                  # API client and local simulation fallback
+│   └── types/                     # Shared TypeScript schemas
+├── run.md                         # Detailed, beginner-friendly execution guide
+└── README.md                      # Project documentation
+```
 
-### 2. Serial Port Error / "Access is denied"
-- Windows allows only **one application** to open a COM port at a time.
-- Make sure the **Arduino IDE Serial Monitor is closed**.
-- Make sure no other serial terminal (PuTTY, TeraTerm) is open.
-- Verify the correct port in Device Manager (e.g., `COM3`, `COM4`) and configure it in `backend/.env`:
-  ```
-  ARDUINO_PORT=COM4
-  ```
+---
 
-### 3. Frontend Shows "Hardware Offline"
-- Ensure `python app.py` is running on port 5000.
-- Check that the Arduino is connected to your USB port.
-- In the dashboard, switch between **Simulation** and **Hardware** mode using the TopBar switch.
-- On the **Device & Settings** page (`/settings`), click **"Test Connection"** to verify communication.
+## 📄 License
 
-### 4. CORS Errors in Browser Console
-- By default, `backend/config.py` permits requests from `localhost:3000`, `127.0.0.1:3000`, `localhost:5173`, and `127.0.0.1:5173`.
-- If using another port, add it to `CORS_ORIGINS` in `backend/.env`.
-
-### 5. Ultrasonic Sensor Returns -1.0 or Stale Readings
-- Check that HC-SR04 VCC is connected to `5V` (not 3.3V) and GND is connected to `GND`.
-- Verify TRIG is on Pin 9 and ECHO is on Pin 10.
-- Ensure the object is positioned directly in front of the ultrasonic transducers (between 2 cm and 400 cm).
+This project is licensed under the [MIT License](LICENSE). Developed as a smart IoT parking monitoring prototype.
