@@ -1,0 +1,6 @@
+{
+  "name": "ParkSense IoT",
+  "description": "Smart parking IoT monitoring, live ultrasonic telemetry, occupancy analytics, and Arduino hardware controller.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
