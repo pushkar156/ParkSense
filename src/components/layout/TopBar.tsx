@@ -36,6 +36,8 @@ export const TopBar: React.FC<TopBarProps> = ({ onToggleSidebar }) => {
     switch (location.pathname) {
       case '/':
         return { title: 'Parking Overview', crumb: 'Dashboard' };
+      case '/simulation':
+        return { title: '3D Simulation Studio', crumb: 'Interactive Model' };
       case '/monitoring':
         return { title: 'Live Monitoring', crumb: 'Telemetry' };
       case '/analytics':

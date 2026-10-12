@@ -11,6 +11,7 @@ import {
   RefreshCw,
   SlidersHorizontal,
   ChevronRight,
+  Boxes,
 } from 'lucide-react';
 import { useParking } from '../../context/ParkingContext';
 
@@ -24,6 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const navItems = [
     { to: '/', label: 'Overview', icon: LayoutDashboard },
+    { to: '/simulation', label: '3D Simulator', icon: Boxes },
     { to: '/monitoring', label: 'Live Monitoring', icon: Radio },
     { to: '/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/events', label: 'Event History', icon: History },

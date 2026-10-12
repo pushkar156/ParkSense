@@ -6,6 +6,7 @@ import { OverviewPage } from './pages/OverviewPage';
 import { LiveMonitoringPage } from './pages/LiveMonitoringPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { EventHistoryPage } from './pages/EventHistoryPage';
+import { Simulation3DPage } from './pages/Simulation3DPage';
 import { DeviceSettingsPage } from './pages/DeviceSettingsPage';
 import { BackendGuidePage } from './pages/BackendGuidePage';
 
@@ -16,6 +17,7 @@ export default function App() {
         <AppLayout>
           <Routes>
             <Route path="/" element={<OverviewPage />} />
+            <Route path="/simulation" element={<Simulation3DPage />} />
             <Route path="/monitoring" element={<LiveMonitoringPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/events" element={<EventHistoryPage />} />
