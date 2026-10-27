@@ -27,24 +27,48 @@ export const Simulation3DPage: React.FC = () => {
     setManualSimDistance,
   } = useParking();
 
-  // Active simulated distance in centimeters (defaults to latest reading or 185 cm)
+  const threshold = status?.threshold_cm ?? 15.0;
+
+  // Active simulated distance in centimeters (defaults to 185 cm backwards when available)
   const [distanceCm, setDistanceCm] = useState<number>(() => {
-    return latestReading?.distance_cm ?? 185.0;
+    if (latestReading && latestReading.occupied) {
+      return latestReading.distance_cm && latestReading.distance_cm > 0 ? latestReading.distance_cm : 9.0;
+    }
+    return 185.0;
   });
 
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('isometric');
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const animationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const threshold = status?.threshold_cm ?? 15.0;
-  const isOccupied = distanceCm < threshold;
+  // When in hardware mode, respect physical Arduino occupied state; otherwise check threshold
+  const isOccupied =
+    mode === 'hardware' && latestReading?.occupied !== undefined
+      ? latestReading.occupied
+      : distanceCm > 0 && distanceCm < threshold;
 
   // Sync with context if external changes occur and we're not actively animating
   useEffect(() => {
-    if (!isAnimating && latestReading?.distance_cm !== undefined) {
-      setDistanceCm(latestReading.distance_cm);
+    if (!isAnimating) {
+      if (mode === 'hardware') {
+        if (latestReading?.occupied === false) {
+          // Green / Available: car must be positioned backwards (out of the bay)
+          const dist = latestReading.distance_cm && latestReading.distance_cm > threshold
+            ? latestReading.distance_cm
+            : 185.0;
+          setDistanceCm(dist);
+        } else if (latestReading?.occupied === true) {
+          // Red / Occupied: car is parked inside the bay
+          const dist = latestReading.distance_cm && latestReading.distance_cm > 0
+            ? latestReading.distance_cm
+            : 9.0;
+          setDistanceCm(dist);
+        }
+      } else if (latestReading?.distance_cm !== undefined && latestReading.distance_cm > 0) {
+        setDistanceCm(latestReading.distance_cm);
+      }
     }
-  }, [latestReading?.distance_cm, isAnimating]);
+  }, [latestReading?.distance_cm, latestReading?.occupied, isAnimating, mode, threshold]);
 
   // Clean up animation timers on unmount
   useEffect(() => {

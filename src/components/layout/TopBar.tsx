@@ -78,16 +78,10 @@ export const TopBar: React.FC<TopBarProps> = ({
     <header className="h-16 bg-white border-b border-[#E2E8F0] px-4 sm:px-6 flex items-center justify-between gap-4 sticky top-0 z-30">
       {/* Left zone: Hamburger toggle + breadcrumb title */}
       <div className="flex items-center gap-3 min-w-0">
+        {/* Mobile-only hamburger drawer trigger (Sidebar has its own hamburger) */}
         <button
-          onClick={() => {
-            if (window.innerWidth < 1024) {
-              onToggleSidebar();
-            } else if (onToggleCollapse) {
-              onToggleCollapse();
-            }
-          }}
-          className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          onClick={onToggleSidebar}
+          className="lg:hidden p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
           aria-label="Toggle navigation drawer"
         >
           <Menu className="w-5 h-5" />

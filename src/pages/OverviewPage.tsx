@@ -123,10 +123,20 @@ export const OverviewPage: React.FC = () => {
               <AlertCircle className="w-5 h-5 text-rose-700" />
             </div>
             <div>
-              <h4 className="text-sm font-semibold">Flask Backend / Arduino Unreachable</h4>
+              <h4 className="text-sm font-semibold">
+                {!status?.backend_reachable ? 'Flask Backend Unreachable' : `Arduino Not Connected (${status?.port || 'Port Offline'})`}
+              </h4>
               <p className="text-xs text-rose-700 mt-0.5">
-                Cannot connect to serial gateway at <code className="font-mono bg-rose-100/60 px-1 rounded">{api.getBaseUrl()}</code>.
-                Make sure <code className="font-mono bg-rose-100/60 px-1 rounded">python app.py</code> is running or switch to Simulation mode.
+                {!status?.backend_reachable ? (
+                  <>
+                    Cannot connect to serial gateway at <code className="font-mono bg-rose-100/60 px-1 rounded">{api.getBaseUrl()}</code>.
+                    Make sure <code className="font-mono bg-rose-100/60 px-1 rounded">python app.py</code> is running or switch to Simulation mode.
+                  </>
+                ) : (
+                  <>
+                    Flask backend is running, but cannot find or open your Arduino on port <code className="font-mono bg-rose-100/60 px-1 rounded">{status?.port || 'COM'}</code>. Check USB connection and COM port in <code className="font-mono bg-rose-100/60 px-1 rounded">backend/.env</code>.
+                  </>
+                )}
               </p>
             </div>
           </div>

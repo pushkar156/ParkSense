@@ -42,28 +42,51 @@ export const ParkingScene3D: React.FC<ParkingScene3DProps> = ({
   // Smooth interpolation state for car position
   // In our 3D world:
   // Sensor is at (0, 0.45, -2.5)
+  // Smooth interpolation state for car position
+  // In our 3D world:
+  // Sensor is at (0, 0.45, -2.5)
   // 10 cm in real world = Z: -1.7 (Parked right at bumper stopper)
-  // 180 cm in real world = Z: 6.0 (Out of bay on the access lane)
-  // Linear formula: Z = -1.7 + ((cm - 10) / 170) * 7.7
+  // 180 cm in real world = Z: 6.5 (Out of bay on the access lane / backwards)
   const targetZRef = useRef<number>(2.0);
   const currentZRef = useRef<number>(2.0);
+  const isOccupiedRef = useRef<boolean>(isOccupied);
+
+  useEffect(() => {
+    isOccupiedRef.current = isOccupied;
+  }, [isOccupied]);
 
   // Convert distance in cm to 3D Z position
-  const cmToZ = useCallback((cm: number): number => {
-    const clampedCm = Math.max(5, Math.min(200, cm));
-    return -1.8 + ((clampedCm - 5) / 195) * 8.5;
+  // Parking bay lines span from Z = -2.5 (sensor post) to Z = 3.5 (bay entrance).
+  // Inside the bay (Occupied / Red): Z = -1.8 to -1.0
+  // Outside the bay (Available / Green / Backwards): Z = 5.2 to 7.5
+  const cmToZ = useCallback((cm: number, occupied?: boolean): number => {
+    const isBayOccupied = occupied ?? (cm > 0 && cm <= 15.0);
+    if (!isBayOccupied || cm <= 0 || cm > 15.0) {
+      // Backwards outside the bay on the access lane (leaving the bay empty)
+      const clampedFar = Math.max(15.1, Math.min(200, cm <= 0 ? 185 : cm));
+      return 5.2 + ((clampedFar - 15.1) / 184.9) * 2.3; // Z: 5.2 to 7.5
+    }
+    // Inside the bay (Occupied)
+    const clampedClose = Math.max(5, Math.min(15, cm));
+    return -1.8 + ((clampedClose - 5) / 10) * 0.7; // Z: -1.8 to -1.1
   }, []);
 
   // Convert 3D Z position to cm
   const zToCm = useCallback((z: number): number => {
-    const norm = (z - (-1.8)) / 8.5;
-    return Math.max(5, Math.min(200, Math.round(5 + norm * 195)));
+    if (z >= 4.0) {
+      // Outside the bay
+      const norm = Math.max(0, Math.min(1, (z - 5.2) / 2.3));
+      return Math.round(15.1 + norm * 184.9);
+    }
+    // Inside the bay
+    const norm = Math.max(0, Math.min(1, (z - (-1.8)) / 0.7));
+    return Math.round(5 + norm * 10);
   }, []);
 
-  // Update target Z when prop changes
+  // Update target Z when props change
   useEffect(() => {
-    targetZRef.current = cmToZ(currentDistanceCm);
-  }, [currentDistanceCm, cmToZ]);
+    targetZRef.current = cmToZ(currentDistanceCm, isOccupied);
+  }, [currentDistanceCm, isOccupied, cmToZ]);
 
   // Adjust camera to preset
   useEffect(() => {
@@ -231,7 +254,7 @@ export const ParkingScene3D: React.FC<ParkingScene3DProps> = ({
       }
 
       // Update LED Lights & Emissive states based on occupancy
-      const occupied = currentZRef.current < cmToZ(thresholdCm);
+      const occupied = isOccupiedRef.current;
       if (redLedLightRef.current && greenLedLightRef.current && redLedMeshRef.current && greenLedMeshRef.current) {
         if (occupied) {
           // RED ON, GREEN OFF
